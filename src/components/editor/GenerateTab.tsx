@@ -148,11 +148,12 @@ export function GenerateTabProvider({ children }: GenerateTabProviderProps) {
         const data = await saveRes.json().catch(() => ({}));
         throw new Error(data.error || 'Fehler beim Speichern des Artikels');
       }
+      const saveData = await saveRes.json();
 
       const imgRes = await fetch('/api/save-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(image),
+        body: JSON.stringify({ url: image.url, folderPath: saveData.folderPath }),
       });
       if (!imgRes.ok) {
         const data = await imgRes.json().catch(() => ({}));

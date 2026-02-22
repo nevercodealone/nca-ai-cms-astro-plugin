@@ -6,10 +6,7 @@ import { getEnvVariable } from '../utils/envUtils';
 import { jsonResponse, jsonError } from './_utils';
 
 const GenerateContentSchema = z.object({
-  url: z.string().url().optional(),
-  keywords: z.string().min(1).optional(),
-}).refine((data) => data.url || data.keywords, {
-  message: 'URL or keywords required',
+  input: z.string().min(1, 'Input is required'),
 });
 
 export const POST: APIRoute = async ({ request }) => {
@@ -19,14 +16,15 @@ export const POST: APIRoute = async ({ request }) => {
     if (!parsed.success) {
       return jsonError(parsed.error.errors[0]?.message ?? 'Invalid request', 400);
     }
-    const { url, keywords } = parsed.data;
+    const { input } = parsed.data;
+    const isUrl = /^https?:\/\//.test(input);
 
     const apiKey = getEnvVariable('GOOGLE_GEMINI_API_KEY');
     const promptService = new PromptService();
     const generator = new ContentGenerator({ apiKey, promptService });
-    const article = url
-      ? await generator.generateFromUrl(url)
-      : await generator.generateFromKeywords(keywords!);
+    const article = isUrl
+      ? await generator.generateFromUrl(input)
+      : await generator.generateFromKeywords(input);
 
     return jsonResponse({
       title: article.title,

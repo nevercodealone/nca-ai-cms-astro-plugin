@@ -1,5 +1,6 @@
 /**
- * Reads an environment variable from `process.env`.
+ * Reads an environment variable from `import.meta.env` (Astro/Vite)
+ * with a fallback to `process.env` for non-Vite environments.
  *
  * @param variable     - The name of the environment variable.
  * @param defaultValue - Optional fallback when the variable is not set.
@@ -10,7 +11,8 @@ export function getEnvVariable(
   variable: string,
   defaultValue?: string,
 ): string {
-  const value = process.env[variable];
+  const value = (import.meta.env as Record<string, string | undefined>)[variable]
+    ?? process.env[variable];
 
   if (value !== undefined && value !== "") {
     return value;

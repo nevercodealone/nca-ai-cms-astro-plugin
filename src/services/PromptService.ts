@@ -16,6 +16,20 @@ export class PromptService {
     return result?.promptText ?? null;
   }
 
+  async createPrompt(id: string, name: string, category: string, promptText: string): Promise<void> {
+    await db.insert(Prompts).values({
+      id,
+      name,
+      category,
+      promptText,
+      updatedAt: new Date(),
+    });
+  }
+
+  async deletePrompt(id: string): Promise<void> {
+    await db.delete(Prompts).where(eq(Prompts.id, id));
+  }
+
   async updatePrompt(id: string, text: string): Promise<void> {
     await db
       .update(Prompts)

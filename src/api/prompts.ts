@@ -22,24 +22,50 @@ export const GET: APIRoute = async () => {
   }
 };
 
-// POST /api/prompts - Update a prompt or setting
+// POST /api/prompts - Create or update a prompt or setting
 export const POST: APIRoute = async ({ request }) => {
   try {
     const data = await request.json();
 
+    // Create a new prompt
+    if (data.action === 'create' && data.name && data.category && data.promptText) {
+      const id = `${data.category}_${Date.now()}`;
+      await service.createPrompt(id, data.name, data.category, data.promptText);
+      return jsonResponse({ success: true, type: 'prompt', id });
+    }
+
+    // Update an existing prompt
     if (data.type === 'prompt' && data.id && data.promptText !== undefined) {
       await service.updatePrompt(data.id, data.promptText);
       return jsonResponse({ success: true, type: 'prompt', id: data.id });
     }
 
+    // Update a setting
     if (data.type === 'setting' && data.key && data.value !== undefined) {
       await service.updateSetting(data.key, data.value);
       return jsonResponse({ success: true, type: 'setting', key: data.key });
     }
 
-    return jsonError('Invalid request: missing type, id/key, or value', 400);
+    return jsonError('Invalid request: missing required fields', 400);
   } catch (error) {
     console.error('Update prompt error:', error);
+    return jsonError(error);
+  }
+};
+
+// DELETE /api/prompts - Delete a prompt
+export const DELETE: APIRoute = async ({ request }) => {
+  try {
+    const data = await request.json();
+
+    if (!data.id) {
+      return jsonError('Missing prompt id', 400);
+    }
+
+    await service.deletePrompt(data.id);
+    return jsonResponse({ success: true, id: data.id });
+  } catch (error) {
+    console.error('Delete prompt error:', error);
     return jsonError(error);
   }
 };
