@@ -1,6 +1,6 @@
 {
   "name": "nca-ai-cms-astro-plugin",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",

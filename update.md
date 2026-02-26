@@ -1,3 +1,12 @@
+# v1.0.11
+
+## Make article-image API route public
+- Added `/api/article-image/` to public path prefixes in auth middleware
+- Article hero images are now accessible without authentication
+- Fixes image loading on public-facing frontend pages
+
+---
+
 # v1.0.8
 
 ## Generalize content generator for any topic
