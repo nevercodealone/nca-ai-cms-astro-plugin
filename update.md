@@ -1,3 +1,17 @@
+# v1.0.14
+
+## Bugfix: Regenerate text works without content-ai settings
+- `buildSystemPrompt()` no longer throws when content-ai settings are missing
+- Uses fallback prompt that works with whatever settings are available — fills in configured values, skips empty ones
+- Fallback prompt explicitly instructs AI to create a completely new version of the existing article with fresh structure and perspectives
+- CTA section is only appended when all three CTA fields (url, style, prompt) are configured — omitted entirely otherwise
+- Updated tests: replaced "throws when not configured" with fallback behavior verification
+
+## Fix: Delete article fetch credentials
+- Added `credentials: 'same-origin'` to DELETE fetch call in `DeleteAction.astro`
+
+---
+
 # v1.0.13
 
 ## ContentGenerator: settings-driven, zero hardcoding
