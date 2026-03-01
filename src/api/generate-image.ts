@@ -6,6 +6,7 @@ import { jsonResponse, jsonError } from './_utils';
 
 const GenerateImageSchema = z.object({
   input: z.string().min(1, 'Input is required'),
+  category: z.string().optional(),
 });
 
 export const POST: APIRoute = async ({ request }) => {
@@ -15,11 +16,11 @@ export const POST: APIRoute = async ({ request }) => {
     if (!parsed.success) {
       return jsonError(parsed.error.errors[0]?.message ?? 'Invalid request', 400);
     }
-    const { input } = parsed.data;
+    const { input, category } = parsed.data;
 
     const apiKey = getEnvVariable('GOOGLE_GEMINI_API_KEY');
     const generator = new ImageGenerator({ apiKey });
-    const image = await generator.generate(input);
+    const image = await generator.generate(input, category);
 
     return jsonResponse({
       url: image.url,
