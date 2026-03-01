@@ -10,7 +10,7 @@ const SUB_TABS: { key: SettingsSubTab; label: string }[] = [
   { key: 'website', label: 'Website' },
 ];
 
-const SETTINGS_TABS: SettingsSubTab[] = ['homepage', 'website', 'image-ai'];
+const SETTINGS_TABS: SettingsSubTab[] = ['homepage', 'website', 'image-ai', 'content-ai'];
 
 const SETTINGS_FIELDS: Record<string, { key: string; label: string; type: 'input' | 'textarea' }[]> = {
   homepage: [
@@ -23,11 +23,20 @@ const SETTINGS_FIELDS: Record<string, { key: string; label: string; type: 'input
     { key: 'core_message', label: 'Kernbotschaft', type: 'textarea' },
   ],
   website: [
-    { key: 'cta_url', label: 'CTA Link', type: 'input' },
-    { key: 'cta_style', label: 'CTA Stil', type: 'input' },
-    { key: 'cta_prompt', label: 'CTA Prompt', type: 'textarea' },
     { key: 'core_tags', label: 'Core Tags (kommagetrennt)', type: 'input' },
     { key: 'brand_guidelines', label: 'Markenrichtlinien', type: 'textarea' },
+  ],
+  'content-ai': [
+    { key: 'content.branche', label: 'Branche / Fachgebiet', type: 'input' },
+    { key: 'content.zielgruppe', label: 'Zielgruppe', type: 'textarea' },
+    { key: 'content.tonalitaet', label: 'Tonalitaet / Stil', type: 'textarea' },
+    { key: 'content.blacklist', label: 'Blacklist (kommagetrennt)', type: 'textarea' },
+    { key: 'content.min_wortanzahl', label: 'Minimale Wortanzahl', type: 'input' },
+    { key: 'content.max_wortanzahl', label: 'Maximale Wortanzahl', type: 'input' },
+    { key: 'content.stil_regeln', label: 'Zusaetzliche Stilregeln', type: 'textarea' },
+    { key: 'content.cta_url', label: 'CTA Link-Ziel', type: 'input' },
+    { key: 'content.cta_style', label: 'CTA Stil', type: 'input' },
+    { key: 'content.cta_prompt', label: 'CTA Anweisung', type: 'textarea' },
   ],
   'image-ai': [
     { key: 'image.baseStylePrompt', label: 'Bildstil-Prompt', type: 'textarea' },
@@ -46,9 +55,9 @@ const CATEGORY_GUIDES: Record<SettingsSubTab, { title: string; description: stri
     example: '',
   },
   'content-ai': {
-    title: 'Content-KI Prompts',
-    description: 'Steuere hier, wie die KI Blogartikel und Texte generiert. Je praeziser der Prompt, desto besser das Ergebnis. Definiere Schreibstil, SEO-Keywords und inhaltliche Schwerpunkte.',
-    example: 'Beispiel: "Schreibe einen Fachartikel mit 800-1200 Woertern. Verwende die Keywords [KEYWORD] natuerlich im Text. Struktur: Einleitung mit Hook, 3-4 Abschnitte mit H2, Fazit mit CTA. Ton: fachlich aber verstaendlich."',
+    title: 'Content-KI Einstellungen & Prompts',
+    description: 'Konfiguriere Branche, Zielgruppe, Tonalitaet und CTA. Darunter verwaltest du Prompts fuer die Content-Generierung.',
+    example: '',
   },
   'analysis-ai': {
     title: 'Analyse-KI Prompts',
@@ -333,7 +342,7 @@ export function SettingsTab() {
       )}
 
       {/* Prompt tabs: Content-KI, Analyse-KI, Bild-KI — prompt cards */}
-      {!loading && !isSettingsTab(activeSubTab) && (
+      {!loading && (!isSettingsTab(activeSubTab) || activeSubTab === 'content-ai') && (
         <>
           {filteredPrompts.length === 0 && !showAddForm && (
             <div style={styles.emptyGuide}>
