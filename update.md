@@ -1,3 +1,20 @@
+# v1.0.12
+
+## ImageGenerator: settings-driven, zero hardcoding
+- Removed all hardcoded prompt strings from `ImageGenerator.ts` (Sheeler style, accessibility references, alt-text, filename prompt)
+- All image generation parameters now read from `SiteSettings` at runtime via `PromptService.getImageSettings()`
+- New settings: `image.baseStylePrompt`, `image.constraints`, `image.sceneTemplate`, `image.altTextTemplate`, `image.filenamePrompt`, `image.categoryScenes`
+- Added `validateImageSettings()` — blocks generation with clear error message when settings are missing
+- Added optional `category` parameter to `generate()` for category-specific scene hints
+- Settings UI: new fields in Bild-KI tab with `{title}` placeholder validation
+- 17 new tests for PromptService and ImageGenerator
+
+## Fix: TypeScript errors with Astro virtual modules
+- Added `@ts-ignore` / `@ts-nocheck` for `astro:db`, `astro:middleware`, `@astrojs/node` imports
+- `tsc --noEmit` now passes cleanly
+
+---
+
 # v1.0.11
 
 ## Make article-image API route public
