@@ -60,6 +60,7 @@ const { articleId } = Astro.props;
       try {
         const response = await fetch(`/api/articles/${articleId}`, {
           method: 'DELETE',
+          credentials: 'same-origin',
         });
         response.ok
           ? removeCard()
