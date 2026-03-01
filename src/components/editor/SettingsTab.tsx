@@ -10,7 +10,7 @@ const SUB_TABS: { key: SettingsSubTab; label: string }[] = [
   { key: 'website', label: 'Website' },
 ];
 
-const SETTINGS_TABS: SettingsSubTab[] = ['homepage', 'website'];
+const SETTINGS_TABS: SettingsSubTab[] = ['homepage', 'website', 'image-ai'];
 
 const SETTINGS_FIELDS: Record<string, { key: string; label: string; type: 'input' | 'textarea' }[]> = {
   homepage: [
@@ -28,6 +28,14 @@ const SETTINGS_FIELDS: Record<string, { key: string; label: string; type: 'input
     { key: 'cta_prompt', label: 'CTA Prompt', type: 'textarea' },
     { key: 'core_tags', label: 'Core Tags (kommagetrennt)', type: 'input' },
     { key: 'brand_guidelines', label: 'Markenrichtlinien', type: 'textarea' },
+  ],
+  'image-ai': [
+    { key: 'image.baseStylePrompt', label: 'Bildstil-Prompt', type: 'textarea' },
+    { key: 'image.constraints', label: 'Bild-Einschraenkungen', type: 'textarea' },
+    { key: 'image.sceneTemplate', label: 'Szenen-Template (mit {title} Platzhalter)', type: 'textarea' },
+    { key: 'image.altTextTemplate', label: 'Alt-Text-Template (mit {title} Platzhalter)', type: 'input' },
+    { key: 'image.filenamePrompt', label: 'Dateiname-Prompt (mit {title} Platzhalter)', type: 'textarea' },
+    { key: 'image.categoryScenes', label: 'Kategorie-Szenen (JSON)', type: 'textarea' },
   ],
 };
 
@@ -162,6 +170,18 @@ export function SettingsTab() {
     setError(null);
     setSettingsSaved(false);
     try {
+      if (activeSubTab === 'image-ai') {
+        const templateKeys = ['image.sceneTemplate', 'image.altTextTemplate', 'image.filenamePrompt'];
+        for (const key of templateKeys) {
+          const value = settingsForm[key] ?? '';
+          if (value && !value.includes('{title}')) {
+            const field = (SETTINGS_FIELDS['image-ai'] ?? []).find(f => f.key === key);
+            setError(`Das Feld "${field?.label ?? key}" muss den Platzhalter {title} enthalten.`);
+            setSaving(false);
+            return;
+          }
+        }
+      }
       const fields = SETTINGS_FIELDS[activeSubTab] ?? [];
       for (const field of fields) {
         const value = settingsForm[field.key] ?? '';
