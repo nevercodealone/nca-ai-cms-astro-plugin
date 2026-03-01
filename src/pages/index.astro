@@ -1,0 +1,755 @@
+---
+import { Image } from 'astro:assets';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { db, SiteSettings, eq } from 'astro:db';
+import Layout from '../layouts/Layout.astro';
+import DeleteAction from '../components/frontend/DeleteAction.astro';
+import { ArticleService } from '../services/ArticleService';
+import { escapeJsonLd } from '../utils/sanitize';
+
+// Load hero content from database
+const getSetting = async (key: string, fallback: string) => {
+  const result = await db
+    .select()
+    .from(SiteSettings)
+    .where(eq(SiteSettings.key, key))
+    .get();
+  return result?.value ?? fallback;
+};
+
+const heroKicker = await getSetting(
+  'hero_kicker',
+  ''
+);
+const heroTitle = await getSetting('hero_headline', '');
+const heroTitleAccent = await getSetting('hero_title_accent', '');
+const heroDescription = await getSetting(
+  'hero_text',
+  ''
+);
+
+// Check if user is authenticated
+const authCookie = Astro.cookies.get('editor-auth');
+const isAuthenticated = !!authCookie?.value;
+
+// Helper to get image URL with cache busting
+const getArticleImageUrl = async (articleId: string) => {
+  let mtime = '';
+  try {
+    const heroPath = path.join(
+      process.cwd(),
+      'nca-ai-cms-content',
+      articleId,
+      'hero.webp'
+    );
+    const stats = await fs.stat(heroPath);
+    mtime = stats.mtimeMs.toString(36);
+  } catch {}
+  return `/api/article-image/${articleId}/hero.webp${mtime ? `?v=${mtime}` : ''}`;
+};
+
+const service = new ArticleService();
+const articles = await service.list();
+
+const sortedArticles = articles.sort((a, b) => {
+  const aTime = a.createdAt?.getTime() ?? a.date.getTime();
+  const bTime = b.createdAt?.getTime() ?? b.date.getTime();
+  return bTime - aTime;
+});
+
+// Precompute image URLs with cache busting
+const imageUrls = new Map<string, string>();
+for (const article of sortedArticles) {
+  imageUrls.set(article.articleId, await getArticleImageUrl(article.articleId));
+}
+
+const featuredArticle = sortedArticles[0];
+const remainingArticles = sortedArticles.slice(1);
+
+const siteUrl = (Astro.site ?? new URL(Astro.url.origin))
+  .toString()
+  .replace(/\/+$/, '');
+const homeJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'NCA Content',
+  url: siteUrl,
+  description: heroDescription,
+  inLanguage: 'de',
+  publisher: {
+    '@type': 'Organization',
+    name: 'NCA Content',
+    url: siteUrl,
+  },
+};
+---
+
+<Layout title="Home" description={heroDescription}>
+  <script
+    type="application/ld+json"
+    set:html={escapeJsonLd(JSON.stringify(homeJsonLd))}
+  />
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-content">
+        <p class="hero-kicker">{heroKicker}</p>
+        <h1 class="hero-title">
+          {heroTitle}
+          <span class="hero-title-accent">{heroTitleAccent}</span>
+        </h1>
+        <p class="hero-description">
+          {heroDescription}
+        </p>
+      </div>
+      <div class="hero-decoration" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <!-- Articles Section -->
+  <section class="articles-section">
+    <div class="container">
+      {
+        sortedArticles.length > 0 ? (
+          <>
+            <header class="section-header">
+              <div class="section-header-left">
+                <span class="section-kicker">Aktuelles</span>
+                <h2 class="section-title">Artikel</h2>
+              </div>
+              <span class="article-count">
+                {sortedArticles.length} Beiträge
+              </span>
+            </header>
+
+            {featuredArticle && (
+              <a
+                href={`/articles/${featuredArticle.articleId}`}
+                class="featured-card"
+              >
+                {isAuthenticated && (
+                  <DeleteAction
+                    articleId={
+                      featuredArticle.articleId.split('/').pop() ||
+                      featuredArticle.articleId
+                    }
+                  />
+                )}
+                <div class="featured-card-image img-zoom">
+                  {featuredArticle.image ? (
+                    <Image
+                      src={imageUrls.get(featuredArticle.articleId)!}
+                      alt={featuredArticle.imageAlt || featuredArticle.title}
+                      width={900}
+                      height={500}
+                      loading="eager"
+                    />
+                  ) : (
+                    <div class="image-placeholder">
+                      <span>Kein Bild</span>
+                    </div>
+                  )}
+                  <div class="featured-card-overlay" />
+                </div>
+                <div class="featured-card-content">
+                  <div class="card-meta">
+                    <span class="card-tag">{featuredArticle.tags[0]}</span>
+                    <span class="card-date">
+                      {featuredArticle.date.toLocaleDateString('de-DE', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                  <h3 class="featured-card-title">{featuredArticle.title}</h3>
+                  <p class="featured-card-excerpt">
+                    {featuredArticle.description}
+                  </p>
+                  <span class="read-more">
+                    Artikel lesen
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                      <polyline points="12 5 19 12 12 19" />
+                    </svg>
+                  </span>
+                </div>
+              </a>
+            )}
+
+            {remainingArticles.length > 0 && (
+              <div class="article-grid stagger-children">
+                {remainingArticles.map((article, index) => (
+                  <a
+                    href={`/articles/${article.articleId}`}
+                    class:list={[
+                      'article-card',
+                      'hover-lift',
+                      { 'article-card--wide': index % 5 === 0 },
+                    ]}
+                  >
+                    {isAuthenticated && (
+                      <DeleteAction
+                        articleId={
+                          article.articleId.split('/').pop() ||
+                          article.articleId
+                        }
+                      />
+                    )}
+                    <div class="article-card-image img-zoom">
+                      {article.image ? (
+                        <Image
+                          src={imageUrls.get(article.articleId)!}
+                          alt={article.imageAlt || article.title}
+                          width={480}
+                          height={280}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div class="image-placeholder">
+                          <span>Kein Bild</span>
+                        </div>
+                      )}
+                    </div>
+                    <div class="article-card-content">
+                      <div class="card-meta">
+                        <span class="card-tag">{article.tags[0]}</span>
+                        <span class="card-date">
+                          {article.date.toLocaleDateString('de-DE')}
+                        </span>
+                      </div>
+                      <h3 class="article-card-title">{article.title}</h3>
+                      <p class="article-card-excerpt">{article.description}</p>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div class="empty-state">
+            <div class="empty-state-icon">
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+            </div>
+            <h3 class="empty-state-title">Noch keine Artikel</h3>
+            <p class="empty-state-text">
+              Erstelle deinen ersten Artikel im Editor.
+            </p>
+            <a href="/editor" class="empty-state-cta glow-primary">
+              Zum Editor
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </a>
+          </div>
+        )
+      }
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .hero {
+    position: relative;
+    padding: var(--space-20) 0 var(--space-16);
+    overflow: hidden;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 720px;
+    animation: fadeInUp var(--duration-slower) var(--ease-out-expo) forwards;
+  }
+
+  .hero-kicker {
+    display: inline-block;
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-widest);
+    color: var(--color-primary-on-dark);
+    margin-bottom: var(--space-5);
+    padding: var(--space-2) var(--space-4);
+    background: var(--color-primary-muted);
+    border-radius: var(--radius-full);
+  }
+
+  .hero-title {
+    font-family: var(--font-display);
+    font-size: clamp(var(--text-5xl), 8vw, var(--text-7xl));
+    font-weight: 700;
+    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-tighter);
+    margin-bottom: var(--space-6);
+    color: var(--color-text);
+  }
+
+  .hero-title-accent {
+    display: block;
+    color: var(--color-primary);
+    font-style: italic;
+  }
+
+  .hero-description {
+    font-family: var(--font-body);
+    font-size: var(--text-xl);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-relaxed);
+    max-width: 540px;
+  }
+
+  .hero-decoration {
+    position: absolute;
+    top: -150px;
+    right: -250px;
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(
+      circle at center,
+      var(--color-primary-muted) 0%,
+      transparent 65%
+    );
+    opacity: 0.8;
+    pointer-events: none;
+    animation: fadeIn var(--duration-slower) var(--ease-out-expo) 0.3s forwards;
+    opacity: 0;
+  }
+
+  .articles-section {
+    padding-bottom: var(--space-24);
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: var(--space-10);
+    padding-bottom: var(--space-6);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .section-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .section-kicker {
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-widest);
+    color: var(--color-text-muted);
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: var(--text-4xl);
+    font-weight: 600;
+    letter-spacing: var(--tracking-tight);
+    color: var(--color-text);
+  }
+
+  .article-count {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    padding: var(--space-2) var(--space-4);
+    background: var(--color-surface);
+    border-radius: var(--radius-full);
+  }
+
+  .featured-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 0;
+    background: var(--color-surface);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    margin-bottom: var(--space-12);
+    transition: box-shadow var(--transition-base);
+  }
+
+  .featured-card:hover {
+    box-shadow: var(--shadow-xl);
+  }
+
+  .featured-card-image {
+    position: relative;
+    aspect-ratio: 16 / 10;
+  }
+
+  .featured-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .featured-card-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      transparent 50%,
+      rgba(0, 0, 0, 0.4) 100%
+    );
+    pointer-events: none;
+  }
+
+  .featured-card-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: var(--space-10) var(--space-10) var(--space-10) var(--space-8);
+  }
+
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
+  }
+
+  .card-tag {
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wider);
+    color: var(--color-primary-on-dark);
+  }
+
+  .card-date {
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .featured-card-title {
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    font-weight: 600;
+    line-height: var(--leading-snug);
+    letter-spacing: var(--tracking-tight);
+    margin-bottom: var(--space-4);
+    color: var(--color-text);
+    transition: color var(--transition-fast);
+  }
+
+  .featured-card:hover .featured-card-title {
+    color: var(--color-primary);
+  }
+
+  .featured-card-excerpt {
+    font-family: var(--font-body);
+    font-size: var(--text-lg);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-relaxed);
+    margin-bottom: var(--space-6);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .read-more {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wider);
+    color: var(--color-primary-on-dark);
+  }
+
+  .read-more svg {
+    transition: transform var(--transition-fast);
+  }
+
+  .featured-card:hover .read-more svg {
+    transform: translateX(6px);
+  }
+
+  .article-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: var(--space-8);
+  }
+
+  .article-card {
+    position: relative;
+    grid-column: span 4;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .article-card--wide {
+    grid-column: span 6;
+  }
+
+  .article-card-image {
+    aspect-ratio: 16 / 10;
+    background: var(--color-surface-elevated);
+  }
+
+  .article-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .image-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-surface-elevated);
+    color: var(--color-text-muted);
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+  }
+
+  .article-card-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-6);
+  }
+
+  .article-card-title {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 600;
+    line-height: var(--leading-snug);
+    letter-spacing: var(--tracking-tight);
+    margin-bottom: var(--space-3);
+    color: var(--color-text);
+    transition: color var(--transition-fast);
+  }
+
+  .article-card:hover .article-card-title {
+    color: var(--color-primary);
+  }
+
+  .article-card-excerpt {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-relaxed);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--space-20) var(--space-8);
+    background: var(--color-surface);
+    border-radius: var(--radius-xl);
+    border: 1px dashed var(--color-border);
+  }
+
+  .empty-state-icon {
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-6);
+  }
+
+  .empty-state-title {
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: var(--space-3);
+  }
+
+  .empty-state-text {
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-8);
+  }
+
+  .empty-state-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-6);
+    background: var(--color-primary);
+    color: white;
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wider);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    transition:
+      background var(--transition-fast),
+      transform var(--transition-fast);
+  }
+
+  .empty-state-cta:hover {
+    background: var(--color-primary-hover);
+    transform: translateY(-2px);
+  }
+
+  @media (max-width: 1024px) {
+    .featured-card {
+      grid-template-columns: 1fr;
+    }
+
+    .featured-card-content {
+      padding: var(--space-8);
+    }
+
+    .article-card {
+      grid-column: span 6;
+    }
+
+    .article-card--wide {
+      grid-column: span 6;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .hero {
+      padding: var(--space-10) 0 var(--space-8);
+    }
+
+    .hero-title {
+      font-size: clamp(var(--text-3xl), 8vw, var(--text-5xl));
+    }
+
+    .hero-description {
+      font-size: var(--text-lg);
+    }
+
+    .section-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--space-4);
+    }
+
+    .section-title {
+      font-size: var(--text-3xl);
+    }
+
+    .featured-card-title {
+      font-size: var(--text-2xl);
+    }
+
+    .featured-card-content {
+      padding: var(--space-6);
+    }
+
+    .article-grid {
+      gap: var(--space-6);
+    }
+
+    .article-card,
+    .article-card--wide {
+      grid-column: span 12;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .hero {
+      padding: var(--space-8) 0 var(--space-6);
+    }
+
+    .hero-kicker {
+      font-size: 0.625rem;
+      padding: var(--space-1) var(--space-3);
+    }
+
+    .hero-description {
+      font-size: var(--text-base);
+    }
+
+    .section-title {
+      font-size: var(--text-2xl);
+    }
+
+    .featured-card-title {
+      font-size: var(--text-xl);
+    }
+
+    .featured-card-excerpt {
+      font-size: var(--text-base);
+      -webkit-line-clamp: 2;
+    }
+
+    .featured-card-content {
+      padding: var(--space-5);
+    }
+
+    .article-card-content {
+      padding: var(--space-4);
+    }
+
+    .article-card-title {
+      font-size: var(--text-lg);
+    }
+
+    .article-grid {
+      gap: var(--space-4);
+    }
+
+    .read-more {
+      font-size: var(--text-sm);
+    }
+  }
+</style>

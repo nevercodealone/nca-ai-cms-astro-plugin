@@ -1,6 +1,7 @@
 import { GoogleGenAI, PersonGeneration } from '@google/genai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Slug } from '../domain/value-objects/Slug';
+import { PromptService, type ImageSettings } from './PromptService';
 
 export interface GeneratedImage {
   url: string;
@@ -18,16 +19,27 @@ export class ImageGenerator {
   private client: GoogleGenAI;
   private textClient: GoogleGenerativeAI;
   private model: string;
+  private promptService: PromptService;
 
   constructor(config: ImageGeneratorConfig) {
     this.client = new GoogleGenAI({ apiKey: config.apiKey });
     this.textClient = new GoogleGenerativeAI(config.apiKey);
     this.model = config.model || 'imagen-4.0-generate-001';
+    this.promptService = new PromptService();
   }
 
-  async generate(title: string): Promise<GeneratedImage> {
-    const prompt = this.buildPrompt(title);
-    const filename = await this.generateSeoFilename(title);
+  async generate(title: string, category?: string): Promise<GeneratedImage> {
+    const settings = await this.promptService.getImageSettings();
+    const validation = this.promptService.validateImageSettings(settings);
+
+    if (!validation.valid) {
+      throw new Error(
+        `Bildgenerierung nicht konfiguriert. Fehlende Settings: ${validation.missing.join(', ')}. Bitte unter Einstellungen → Bildgenerierung ausfüllen.`
+      );
+    }
+
+    const prompt = this.buildPrompt(title, settings, category);
+    const filename = await this.generateSeoFilename(title, settings);
     const filepath = `dist/client/images/${filename}.webp`;
 
     try {
@@ -57,7 +69,7 @@ export class ImageGenerator {
 
       return {
         url: `data:image/png;base64,${base64}`,
-        alt: this.generateAlt(title),
+        alt: this.buildAltText(title, settings),
         filepath,
         base64,
       };
@@ -69,29 +81,30 @@ export class ImageGenerator {
     }
   }
 
-  private buildPrompt(title: string): string {
-    return `Blog header image about "${title}" for a web accessibility article. Minimal Precisionism style inspired by Charles Sheeler: clean geometric shapes, sharp focus, smooth surfaces, no people. IMPORTANT: absolutely no text, no letters, no words, no typography, no labels, no captions anywhere in the image.`;
+  private buildPrompt(title: string, settings: ImageSettings, category?: string): string {
+    const scene = settings.sceneTemplate.replace('{title}', title);
+    let prompt = `${scene} ${settings.baseStylePrompt} ${settings.constraints}`;
+
+    if (category) {
+      const sceneHint = settings.categoryScenes[category] ?? settings.categoryScenes['default'];
+      if (sceneHint) {
+        prompt += ` Visual elements: ${sceneHint}`;
+      }
+    }
+
+    return prompt;
   }
 
-  private generateAlt(title: string): string {
-    return `Illustration zum Thema ${title} - Barrierefreiheit im Web`;
+  private buildAltText(title: string, settings: ImageSettings): string {
+    return settings.altTextTemplate.replace('{title}', title);
   }
 
-  private async generateSeoFilename(title: string): Promise<string> {
+  private async generateSeoFilename(title: string, settings: ImageSettings): Promise<string> {
     const model = this.textClient.getGenerativeModel({
       model: 'gemini-2.0-flash',
     });
 
-    const prompt = `Generate a single SEO-optimized filename for an image about web accessibility article titled "${title}".
-Requirements:
-- German and English keywords mixed
-- Lowercase, words separated by hyphens
-- Max 5-6 words
-- No file extension
-- Focus on: barrierefreiheit, accessibility, web, and the topic
-- Return ONLY the filename, nothing else
-
-Example for topic "Forms": barrierefreiheit-formulare-accessible-forms`;
+    const prompt = settings.filenamePrompt.replace('{title}', title);
 
     try {
       const result = await model.generateContent(prompt);
@@ -100,9 +113,9 @@ Example for topic "Forms": barrierefreiheit-formulare-accessible-forms`;
         .trim()
         .toLowerCase()
         .replace(/[^a-z0-9-]/g, '');
-      return filename || Slug.generate(`barrierefreiheit-${title}`);
+      return filename || Slug.generate(title);
     } catch {
-      return Slug.generate(`barrierefreiheit-${title}-accessibility`);
+      return Slug.generate(title);
     }
   }
 }

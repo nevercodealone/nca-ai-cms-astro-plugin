@@ -1,0 +1,75 @@
+---
+import MetaDisplay from './MetaDisplay.astro';
+import TagList from './TagList.astro';
+
+interface Props {
+  title?: string;
+  category?: string;
+  date: string;
+  datetime?: string;
+  lede?: string;
+  tags?: string[];
+  animate?: boolean;
+}
+
+const {
+  category,
+  date,
+  datetime,
+  lede,
+  tags = [],
+  animate = false,
+} = Astro.props;
+---
+
+<header class="article-header">
+  <div class:list={['article-header-content', { 'animate-fadeInUp': animate }]}>
+    <MetaDisplay category={category} date={date} datetime={datetime} />
+    {lede && <p class="article-lede">{lede}</p>}
+    {tags.length > 1 && <TagList tags={tags.slice(1)} />}
+  </div>
+</header>
+
+<style>
+  .article-header {
+    padding: var(--space-16) 0 var(--space-12);
+    max-width: 900px;
+  }
+
+  .article-header-content {
+    opacity: 1;
+  }
+
+  .article-header-content.animate-fadeInUp {
+    opacity: 0;
+  }
+
+  .article-lede {
+    font-family: var(--font-body);
+    font-size: var(--text-xl);
+    color: var(--color-text);
+    line-height: var(--leading-relaxed);
+    max-width: 720px;
+    margin-bottom: var(--space-6);
+  }
+
+  @media (max-width: 768px) {
+    .article-header {
+      padding: var(--space-10) 0 var(--space-8);
+    }
+
+    .article-lede {
+      font-size: var(--text-lg);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .article-header {
+      padding: var(--space-8) 0 var(--space-6);
+    }
+
+    .article-lede {
+      font-size: var(--text-base);
+    }
+  }
+</style>

@@ -1,3 +1,62 @@
+# v1.0.13
+
+## ContentGenerator: settings-driven, zero hardcoding
+- Removed all hardcoded prompt strings from `ContentGenerator.ts` (DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTACT_URL, DEFAULT_CORE_TAGS)
+- All content generation parameters now read from `SiteSettings` at runtime via `PromptService.getContentSettings()`
+- New settings: `content.branche`, `content.zielgruppe`, `content.tonalitaet`, `content.blacklist`, `content.min_wortanzahl`, `content.max_wortanzahl`, `content.stil_regeln`, `content.cta_url`, `content.cta_style`, `content.cta_prompt`
+- Added `validateContentSettings()` — blocks generation with clear error message when settings are missing
+- Added blacklist post-generation check with warnings in API response
+- `promptService` is now required (was optional with hardcoded fallbacks)
+- Removed hardcoded fallbacks from `getCTAConfig()` and `getCoreTags()`
+- Settings UI: new Content-KI tab with all content settings fields, CTA fields moved from Website tab
+- Content-KI tab shows both settings form and prompt cards (dual rendering)
+- 17 new tests for ContentGenerator and PromptService content settings
+
+---
+
+# v1.0.12
+
+## ImageGenerator: settings-driven, zero hardcoding
+- Removed all hardcoded prompt strings from `ImageGenerator.ts` (Sheeler style, accessibility references, alt-text, filename prompt)
+- All image generation parameters now read from `SiteSettings` at runtime via `PromptService.getImageSettings()`
+- New settings: `image.baseStylePrompt`, `image.constraints`, `image.sceneTemplate`, `image.altTextTemplate`, `image.filenamePrompt`, `image.categoryScenes`
+- Added `validateImageSettings()` — blocks generation with clear error message when settings are missing
+- Added optional `category` parameter to `generate()` for category-specific scene hints
+- Settings UI: new fields in Bild-KI tab with `{title}` placeholder validation
+- 17 new tests for PromptService and ImageGenerator
+
+## Fix: TypeScript errors with Astro virtual modules
+- Added `@ts-ignore` / `@ts-nocheck` for `astro:db`, `astro:middleware`, `@astrojs/node` imports
+- `tsc --noEmit` now passes cleanly
+
+---
+
+# v1.0.11
+
+## Make article-image API route public
+- Added `/api/article-image/` to public path prefixes in auth middleware
+- Article hero images are now accessible without authentication
+- Fixes image loading on public-facing frontend pages
+
+---
+
+# v1.0.8
+
+## Generalize content generator for any topic
+- Removed hardcoded accessibility/Barrierefreiheit references from all prompts
+- `analyzeSource` now uses `systemInstruction` consistently with `researchKeywords` and `generateContent`
+- Default system prompt uses topic-agnostic language ("zum jeweiligen Thema" instead of "zur Barrierefreiheit")
+- Removed hardcoded keyword integration rule from default system prompt
+- Default core tags changed from accessibility-specific to general (`Web-Entwicklung`, `Best Practices`)
+- Default contact URL updated to generic contact page
+- Domain specialization now lives entirely in configurable database prompts
+
+## Fix: updateSetting upsert
+- `PromptService.updateSetting()` now inserts if key doesn't exist instead of silently doing nothing
+- Enables creating new settings through the settings UI without pre-seeding the database
+
+---
+
 # v1.0.6
 
 ## Separate settings from prompts in SettingsTab

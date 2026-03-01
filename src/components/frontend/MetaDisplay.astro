@@ -1,0 +1,66 @@
+---
+interface Props {
+  category?: string;
+  date: string;
+  datetime?: string;
+}
+
+const { category, date, datetime } = Astro.props;
+---
+
+<div class="article-meta">
+  {category && <span class="article-category">{category}</span>}
+  <span class="article-meta-divider" aria-hidden="true"></span>
+  {
+    datetime ? (
+      <time datetime={datetime} class="article-date">
+        {date}
+      </time>
+    ) : (
+      <span class="article-date">{date}</span>
+    )
+  }
+</div>
+
+<style>
+  .article-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+
+  .article-category {
+    font-family: var(--font-ui);
+    font-size: var(--text-base);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-widest);
+    color: var(--color-text);
+    padding: var(--space-1) var(--space-3);
+    background: var(--color-primary-muted);
+    border-radius: var(--radius-sm);
+  }
+
+  .article-meta-divider {
+    width: 32px;
+    height: 1px;
+    background: var(--color-border-accent);
+  }
+
+  .article-date {
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+  }
+
+  @media (max-width: 480px) {
+    .article-meta {
+      gap: var(--space-2);
+    }
+
+    .article-meta-divider {
+      width: 16px;
+    }
+  }
+</style>

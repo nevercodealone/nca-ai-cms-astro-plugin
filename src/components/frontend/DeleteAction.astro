@@ -1,0 +1,143 @@
+---
+interface Props {
+  articleId: string;
+}
+const { articleId } = Astro.props;
+---
+
+<div class="delete-action" data-article-id={articleId}>
+  <button class="delete-icon" aria-label="Artikel löschen" type="button">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <polyline points="3 6 5 6 21 6"></polyline>
+      <path
+        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+      ></path>
+      <line x1="10" y1="11" x2="10" y2="17"></line>
+      <line x1="14" y1="11" x2="14" y2="17"></line>
+    </svg>
+  </button>
+  <button class="confirm-yes" type="button" hidden>Ja</button>
+</div>
+
+<script>
+  document.querySelectorAll('.delete-action').forEach((container) => {
+    const articleId = (container as HTMLElement).dataset.articleId;
+    const icon = container.querySelector('.delete-icon') as HTMLButtonElement;
+    const confirmBtn = container.querySelector(
+      '.confirm-yes'
+    ) as HTMLButtonElement;
+
+    const showConfirm = () => {
+      icon.hidden = true;
+      confirmBtn.hidden = false;
+    };
+
+    const resetState = () => {
+      confirmBtn.hidden = true;
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = 'Ja';
+      icon.hidden = false;
+    };
+
+    const removeCard = () => {
+      const card = container.closest('.article-card, .featured-card');
+      card ? card.remove() : window.location.reload();
+    };
+
+    const deleteArticle = async () => {
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = '...';
+
+      try {
+        const response = await fetch(`/api/articles/${articleId}`, {
+          method: 'DELETE',
+        });
+        response.ok
+          ? removeCard()
+          : (alert('Löschen fehlgeschlagen'), resetState());
+      } catch {
+        alert('Löschen fehlgeschlagen');
+        resetState();
+      }
+    };
+
+    icon?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showConfirm();
+    });
+
+    confirmBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      deleteArticle();
+    });
+  });
+</script>
+
+<style>
+  .delete-action {
+    position: absolute;
+    top: var(--space-3, 0.75rem);
+    right: var(--space-3, 0.75rem);
+    z-index: 10;
+  }
+
+  .delete-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition:
+      color 0.2s ease,
+      background 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  .delete-icon:hover {
+    color: var(--color-error);
+    background: var(--color-error-muted);
+    border-color: var(--color-error);
+  }
+
+  .delete-icon:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .confirm-yes {
+    padding: var(--space-1, 0.25rem) var(--space-3, 0.75rem);
+    font-family: var(--font-ui);
+    font-size: var(--text-sm, 0.875rem);
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius-sm, 4px);
+    cursor: pointer;
+    background: var(--color-error, #f87171);
+    color: white;
+  }
+
+  .confirm-yes:hover {
+    background: #ef4444;
+  }
+
+  .confirm-yes:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+</style>

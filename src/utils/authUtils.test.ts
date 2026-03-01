@@ -8,6 +8,11 @@ describe('isPublicPath', () => {
     expect(isPublicPath('/login')).toBe(true);
   });
 
+  it('allows article-image paths', () => {
+    expect(isPublicPath('/api/article-image/123/hero.webp')).toBe(true);
+    expect(isPublicPath('/api/article-image/some-slug/hero.webp')).toBe(true);
+  });
+
   it('rejects other paths', () => {
     expect(isPublicPath('/api/generate-content')).toBe(false);
     expect(isPublicPath('/editor')).toBe(false);

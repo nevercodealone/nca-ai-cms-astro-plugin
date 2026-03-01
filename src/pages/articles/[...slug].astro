@@ -1,0 +1,378 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { renderMarkdown } from '../../utils/markdown';
+import { escapeJsonLd } from '../../utils/sanitize';
+import HeroImage from '../../components/frontend/HeroImage.astro';
+import ArticleHeader from '../../components/frontend/ArticleHeader.astro';
+import SidebarCard from '../../components/frontend/SidebarCard.astro';
+import BackLink from '../../components/frontend/BackLink.astro';
+import { ArticleService } from '../../services/ArticleService';
+
+// Check if user is authenticated
+const authCookie = Astro.cookies.get('editor-auth');
+const isAuthenticated = !!authCookie?.value;
+
+const { slug } = Astro.params;
+
+if (!slug) {
+  return Astro.redirect('/');
+}
+
+// Extract just the slug (last part of the path)
+const articleSlug = slug.split('/').pop() || slug;
+
+const service = new ArticleService();
+const article = await service.read(articleSlug);
+
+if (!article) {
+  return Astro.redirect('/');
+}
+
+// Render markdown to HTML
+const htmlContent = await renderMarkdown(article.content || '');
+
+// Format the date nicely
+const formattedDate = article.date.toLocaleDateString('de-DE', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+
+const siteUrl = (Astro.site ?? new URL(Astro.url.origin))
+  .toString()
+  .replace(/\/+$/, '');
+const articleUrl = `${siteUrl}/articles/${slug}`;
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: article.title,
+  description: article.description,
+  datePublished: article.date.toISOString(),
+  url: articleUrl,
+  inLanguage: 'de',
+  publisher: {
+    '@type': 'Organization',
+    name: 'NCA Content',
+    url: siteUrl,
+  },
+  ...(article.image
+    ? { image: `${siteUrl}/api/article-image/${slug}/hero.webp` }
+    : {}),
+  ...(article.tags?.length ? { keywords: article.tags.join(', ') } : {}),
+};
+---
+
+<Layout title={article.title} description={article.description}>
+  <script
+    type="application/ld+json"
+    set:html={escapeJsonLd(JSON.stringify(jsonLd))}
+  />
+  <article class="article-page">
+    <!-- Article Header -->
+    <div data-article-id={articleSlug}>
+      <ArticleHeader
+        category={article.tags[0]}
+        date={formattedDate}
+        datetime={article.date.toISOString()}
+        lede={article.description}
+        tags={article.tags}
+        animate={true}
+      />
+    </div>
+
+    <!-- Hero Image -->
+    {
+      article.image && (
+        <HeroImage
+          articleId={article.articleId}
+          alt={article.imageAlt || article.title}
+          isAuthenticated={isAuthenticated}
+        />
+      )
+    }
+
+    <!-- Article Body -->
+    <div class="article-body">
+      <div class="content-column" data-article-id={articleSlug}>
+        {
+          isAuthenticated && (
+            <div class="content-actions">
+              <button
+                class="icon-btn regenerate-text-icon"
+                type="button"
+                aria-label="Text neu generieren"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M23 4v6h-6" />
+                  <path d="M1 20v-6h6" />
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                </svg>
+              </button>
+              <button
+                class="apply-text-btn"
+                type="button"
+                hidden
+                aria-label="Speichern"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="3"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </button>
+            </div>
+          )
+        }
+        <div class="article-content prose" set:html={htmlContent} />
+        <div class="content-preview prose" hidden></div>
+      </div>
+
+      <!-- Sidebar -->
+      <aside class="article-sidebar">
+        <SidebarCard title="Themen">
+          <div class="sidebar-tags">
+            {article.tags.map((tag: string) => <span class="tag">{tag}</span>)}
+          </div>
+        </SidebarCard>
+      </aside>
+    </div>
+
+    <!-- Article Footer -->
+    <footer class="article-footer">
+      <BackLink href="/" text="Zurück zur Übersicht" />
+    </footer>
+  </article>
+</Layout>
+
+<script>
+  const contentColumn = document.querySelector(
+    '.content-column'
+  ) as HTMLElement;
+  if (contentColumn) {
+    const articleId = contentColumn.dataset.articleId;
+    const regenerateBtn = contentColumn.querySelector(
+      '.regenerate-text-icon'
+    ) as HTMLButtonElement;
+    const contentDiv = contentColumn.querySelector(
+      '.article-content'
+    ) as HTMLElement;
+    const previewDiv = contentColumn.querySelector(
+      '.content-preview'
+    ) as HTMLElement;
+    const applyBtn = contentColumn.querySelector(
+      '.apply-text-btn'
+    ) as HTMLButtonElement;
+
+    let previewData: {
+      title: string;
+      description: string;
+      content: string;
+    } | null = null;
+
+    const buildPreviewDom = (
+      title: string,
+      description: string,
+      content: string
+    ) => {
+      const fragment = document.createDocumentFragment();
+
+      const h1 = document.createElement('h1');
+      h1.textContent = title;
+      fragment.appendChild(h1);
+
+      const p = document.createElement('p');
+      const em = document.createElement('em');
+      em.textContent = description;
+      p.appendChild(em);
+      fragment.appendChild(p);
+
+      const body = document.createElement('div');
+      body.textContent = content.replace(/^#\s+.+\n/, '');
+      body.style.whiteSpace = 'pre-wrap';
+      fragment.appendChild(body);
+
+      return fragment;
+    };
+
+    const showPreview = (fragment: DocumentFragment) => {
+      previewDiv.replaceChildren(fragment);
+      contentDiv.hidden = true;
+      previewDiv.hidden = false;
+      applyBtn.hidden = false;
+      regenerateBtn.hidden = true;
+    };
+
+    const generateText = async () => {
+      regenerateBtn.disabled = true;
+      regenerateBtn.classList.add('loading');
+      try {
+        const res = await fetch(`/api/articles/${articleId}/regenerate-text`, {
+          method: 'POST',
+        });
+        if (!res.ok) throw new Error('Generation failed');
+        const data = await res.json();
+        previewData = {
+          title: data.title,
+          description: data.description,
+          content: data.content,
+        };
+        showPreview(
+          buildPreviewDom(data.title, data.description, data.content)
+        );
+      } catch {
+        alert('Text-Generierung fehlgeschlagen');
+        regenerateBtn.disabled = false;
+        regenerateBtn.classList.remove('loading');
+      }
+    };
+
+    const applyChanges = async () => {
+      if (!previewData) return;
+      applyBtn.disabled = true;
+      applyBtn.classList.add('loading');
+      try {
+        const res = await fetch(`/api/articles/${articleId}/apply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(previewData),
+        });
+        if (!res.ok) throw new Error('Save failed');
+        window.location.reload();
+      } catch {
+        alert('Speichern fehlgeschlagen');
+        applyBtn.disabled = false;
+        applyBtn.classList.remove('loading');
+      }
+    };
+
+    regenerateBtn?.addEventListener('click', generateText);
+    applyBtn?.addEventListener('click', applyChanges);
+  }
+
+  document.querySelectorAll('.prose pre').forEach((pre) => {
+    pre.setAttribute('tabindex', '0');
+    pre.setAttribute('role', 'region');
+    pre.setAttribute('aria-label', 'Codeblock');
+  });
+</script>
+
+<style>
+  [hidden] {
+    display: none !important;
+  }
+
+  .article-page {
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: 0 var(--gutter);
+  }
+
+  .article-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: var(--space-16);
+    max-width: 1100px;
+  }
+
+  .content-column {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .content-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+
+  .apply-text-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--color-success, #4ade80);
+    border: none;
+    border-radius: var(--radius-md);
+    color: #000;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .apply-text-btn:hover {
+    background: #22c55e;
+  }
+
+  .apply-text-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .apply-text-btn.loading svg {
+    animation: spin 1s linear infinite;
+  }
+
+  .article-sidebar {
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-8));
+    height: fit-content;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+  }
+
+  .article-footer {
+    max-width: 1100px;
+    margin-top: var(--space-16);
+    padding: var(--space-8) 0 var(--space-20);
+    border-top: 1px solid var(--color-border);
+  }
+
+  @media (max-width: 1024px) {
+    .article-body {
+      grid-template-columns: 1fr;
+      gap: var(--space-10);
+    }
+
+    .article-sidebar {
+      position: static;
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+
+    .sidebar-card {
+      flex: 1;
+      min-width: 200px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .sidebar-card {
+      min-width: 100%;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .sidebar-card {
+      padding: var(--space-4);
+    }
+
+    .article-footer {
+      margin-top: var(--space-10);
+      padding: var(--space-6) 0 var(--space-12);
+    }
+  }
+</style>

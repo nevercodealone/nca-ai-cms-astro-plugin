@@ -1,9 +1,10 @@
 import { getEnvVariable } from './envUtils.js';
 
 const PUBLIC_PATHS = ['/api/auth/login', '/api/auth/logout', '/login'];
+const PUBLIC_PATH_PREFIXES = ['/api/article-image/'];
 
 export function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATHS.includes(pathname);
+  return PUBLIC_PATHS.includes(pathname) || PUBLIC_PATH_PREFIXES.some(prefix => pathname.startsWith(prefix));
 }
 
 export function isProtectedPath(pathname: string): boolean {
