@@ -33,6 +33,43 @@ export const REQUIRED_IMAGE_SETTINGS = [
   'image.filenamePrompt',
 ] as const;
 
+export interface ContentSettings {
+  branche: string;
+  zielgruppe: string;
+  tonalitaet: string;
+  blacklist: string;
+  minWortanzahl: string;
+  maxWortanzahl: string;
+  stilRegeln: string;
+  ctaUrl: string;
+  ctaStyle: string;
+  ctaPrompt: string;
+}
+
+export const CONTENT_SETTING_KEYS = [
+  'content.branche',
+  'content.zielgruppe',
+  'content.tonalitaet',
+  'content.blacklist',
+  'content.min_wortanzahl',
+  'content.max_wortanzahl',
+  'content.stil_regeln',
+  'content.cta_url',
+  'content.cta_style',
+  'content.cta_prompt',
+] as const;
+
+export const REQUIRED_CONTENT_SETTINGS = [
+  'content.branche',
+  'content.zielgruppe',
+  'content.tonalitaet',
+  'content.min_wortanzahl',
+  'content.max_wortanzahl',
+  'content.cta_url',
+  'content.cta_style',
+  'content.cta_prompt',
+] as const;
+
 export class PromptService {
   async getPrompt(id: string): Promise<string | null> {
     const result = await db
@@ -109,22 +146,44 @@ export class PromptService {
     return await db.select().from(SiteSettings);
   }
 
+  async getContentSettings(): Promise<ContentSettings> {
+    const results = await Promise.all(
+      CONTENT_SETTING_KEYS.map((key) => this.getSetting(key))
+    );
+    return {
+      branche: results[0] ?? '',
+      zielgruppe: results[1] ?? '',
+      tonalitaet: results[2] ?? '',
+      blacklist: results[3] ?? '',
+      minWortanzahl: results[4] ?? '',
+      maxWortanzahl: results[5] ?? '',
+      stilRegeln: results[6] ?? '',
+      ctaUrl: results[7] ?? '',
+      ctaStyle: results[8] ?? '',
+      ctaPrompt: results[9] ?? '',
+    };
+  }
+
+  validateContentSettings(settings: ContentSettings): { valid: boolean; missing: string[] } {
+    const missing: string[] = [];
+    if (!settings.branche.trim()) missing.push('branche');
+    if (!settings.zielgruppe.trim()) missing.push('zielgruppe');
+    if (!settings.tonalitaet.trim()) missing.push('tonalitaet');
+    if (!settings.minWortanzahl.trim()) missing.push('minWortanzahl');
+    if (!settings.maxWortanzahl.trim()) missing.push('maxWortanzahl');
+    if (!settings.ctaUrl.trim()) missing.push('ctaUrl');
+    if (!settings.ctaStyle.trim()) missing.push('ctaStyle');
+    if (!settings.ctaPrompt.trim()) missing.push('ctaPrompt');
+    return { valid: missing.length === 0, missing };
+  }
+
   async getCTAConfig(): Promise<CTAConfig> {
     const [url, style, prompt] = await Promise.all([
-      this.getSetting('cta_url'),
-      this.getSetting('cta_style'),
-      this.getPrompt('cta_prompt'),
+      this.getSetting('content.cta_url'),
+      this.getSetting('content.cta_style'),
+      this.getSetting('content.cta_prompt'),
     ]);
-
-    return {
-      url:
-        url ??
-        'https://nevercodealone.de/de/landingpages/barrierefreies-webdesign',
-      style:
-        style ??
-        'Professionell, einladend, mit klarem Nutzenversprechen. Deutsche Sprache.',
-      prompt: prompt ?? 'Generiere einen einzigartigen Call-to-Action.',
-    };
+    return { url: url ?? '', style: style ?? '', prompt: prompt ?? '' };
   }
 
   async getImageSettings(): Promise<ImageSettings> {
@@ -175,11 +234,11 @@ export class PromptService {
 
   async getCoreTags(): Promise<string[]> {
     const tags = await this.getSetting('core_tags');
-    if (!tags) return ['Web-Entwicklung', 'Best Practices'];
+    if (!tags) return [];
     try {
       return JSON.parse(tags);
     } catch {
-      return ['Web-Entwicklung', 'Best Practices'];
+      return [];
     }
   }
 }
