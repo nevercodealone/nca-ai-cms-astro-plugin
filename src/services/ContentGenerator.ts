@@ -250,18 +250,53 @@ Fokussiere auf aktuelle Standards und praktische Anwendbarkeit.`;
     const settings = await this.promptService.getContentSettings();
     const validation = this.promptService.validateContentSettings(settings);
 
-    if (!validation.valid) {
-      throw new Error(
-        `Content-Generierung nicht konfiguriert. Fehlende Settings: ${validation.missing.join(', ')}. Bitte unter Einstellungen → Content-KI ausfüllen.`
-      );
-    }
-
     // Try custom system prompt from DB first
     const basePrompt = await this.promptService.getPrompt('system_prompt');
 
-    const systemPrompt = basePrompt
-      ? basePrompt
-      : `Du bist ein erfahrener technischer Content-Writer für ${settings.branche}.
+    let systemPrompt: string;
+
+    if (!validation.valid) {
+      // Fallback: use available settings where possible, skip what's missing
+      const branche = settings.branche || '';
+      const zielgruppe = settings.zielgruppe || '';
+      const tonalitaet = settings.tonalitaet || '';
+      const minWords = settings.minWortanzahl || '800';
+      const maxWords = settings.maxWortanzahl || '1200';
+
+      systemPrompt = basePrompt
+        ? basePrompt
+        : `Du bist ein erfahrener technischer Content-Writer.${branche ? ` Dein Fachgebiet ist ${branche}.` : ''}
+Deine Aufgabe ist es, eine KOMPLETT NEUE Version eines bestehenden Artikels zu erstellen.
+Der neue Artikel soll das gleiche Thema behandeln, aber mit völlig neuer Struktur, neuen Formulierungen und frischen Perspektiven.
+${zielgruppe ? `\nZielgruppe: ${zielgruppe}` : ''}${tonalitaet ? `\nTonalität: ${tonalitaet}` : ''}
+
+KRITISCH - 100% Originalität:
+- Schreibe einen KOMPLETT EIGENSTÄNDIGEN Artikel — eine völlig neue Version
+- KEINE Sätze, Formulierungen oder Strukturen aus der vorherigen Version übernehmen
+- KEINE Hinweise auf Quellen, Referenzen oder Inspiration im Text
+- Nutze ausschließlich DEIN Expertenwissen zum jeweiligen Thema
+- Jeder Satz muss NEU formuliert sein - wie von einem Experten geschrieben
+- Der Artikel muss wirken als käme er aus eigener Fachkenntnis
+- Wähle eine andere Gliederung und andere Schwerpunkte als ein typischer Artikel zum Thema
+
+Regeln:
+- Schreibe auf Deutsch
+- Mindestens ${minWords} Wörter, maximal ${maxWords} Wörter
+- Verwende praktische Codebeispiele (eigene Beispiele, nicht kopiert)
+- WICHTIG: Content MUSS mit einer H1-Überschrift (# Titel) beginnen
+- Danach H2 (##) und H3 (###) Hierarchie ohne Sprünge
+- WICHTIG: Nur Markdown, KEINE HTML-Tags wie <p>, <div>, <span> etc.
+${settings.stilRegeln ? `\nZusätzliche Stilregeln:\n${settings.stilRegeln}` : ''}
+
+Titel-Regeln:
+- Das Hauptthema/Keyword MUSS im Titel vorkommen
+- Nutze Zahlen wenn möglich (z.B. "5 Tipps", "3 Fehler")
+- Zeige den Nutzen/Benefit (z.B. "So vermeidest du...", "Warum X wichtig ist")
+- Wecke Neugier oder löse ein Problem`;
+    } else {
+      systemPrompt = basePrompt
+        ? basePrompt
+        : `Du bist ein erfahrener technischer Content-Writer für ${settings.branche}.
 Deine Aufgabe ist es, hochwertige deutsche Fachartikel zu erstellen.
 
 Zielgruppe: ${settings.zielgruppe}
@@ -289,13 +324,20 @@ Titel-Regeln:
 - Nutze Zahlen wenn möglich (z.B. "5 Tipps", "3 Fehler")
 - Zeige den Nutzen/Benefit (z.B. "So vermeidest du...", "Warum X wichtig ist")
 - Wecke Neugier oder löse ein Problem`;
+    }
 
-    return `${systemPrompt}
+    // Only add CTA section when CTA settings are configured
+    const hasCta = settings.ctaUrl && settings.ctaStyle && settings.ctaPrompt;
+    if (hasCta) {
+      return `${systemPrompt}
 
 - WICHTIG: Beende den Artikel mit einem einzigartigen Call-to-Action:
   - Link: ${settings.ctaUrl}
   - Stil: ${settings.ctaStyle}
   ${settings.ctaPrompt}`;
+    }
+
+    return systemPrompt;
   }
 
   private buildUserPrompt(analysis: SourceAnalysis): string {

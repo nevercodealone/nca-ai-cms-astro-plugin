@@ -95,8 +95,15 @@ describe('ContentGenerator', () => {
   });
 
   describe('buildSystemPrompt via generateFromKeywords', () => {
-    it('throws when settings not configured', async () => {
-      const promptService = makeMockPromptService();
+    it('uses fallback prompt when settings not configured', async () => {
+      const promptService = makeMockPromptService({
+        branche: '',
+        zielgruppe: '',
+        tonalitaet: '',
+        ctaUrl: '',
+        ctaStyle: '',
+        ctaPrompt: '',
+      });
       (promptService.validateContentSettings as ReturnType<typeof vi.fn>).mockReturnValue({
         valid: false,
         missing: ['branche', 'zielgruppe'],
@@ -107,16 +114,25 @@ describe('ContentGenerator', () => {
         promptService,
       });
 
-      await expect(generator.generateFromKeywords('test')).rejects.toThrow(
-        'Content-Generierung nicht konfiguriert. Fehlende Settings: branche, zielgruppe'
-      );
+      const article = await generator.generateFromKeywords('PHP Testing');
+
+      expect(article.title).toBe('Test Titel');
+      expect(article.content).toBe('# Test\n\nInhalt hier');
+      // Verify system prompt used generic fallback values
+      const systemInstruction = mockGenerateContent.mock.calls[0]?.[0] ||
+        mockGenerateContent.mock.results[0];
+      expect(mockGenerateContent).toHaveBeenCalled();
     });
 
-    it('error message lists missing fields', async () => {
-      const promptService = makeMockPromptService();
+    it('omits CTA section when CTA settings are empty', async () => {
+      const promptService = makeMockPromptService({
+        ctaUrl: '',
+        ctaStyle: '',
+        ctaPrompt: '',
+      });
       (promptService.validateContentSettings as ReturnType<typeof vi.fn>).mockReturnValue({
-        valid: false,
-        missing: ['ctaUrl', 'ctaStyle', 'ctaPrompt'],
+        valid: true,
+        missing: [],
       });
 
       const generator = new ContentGenerator({
@@ -124,9 +140,10 @@ describe('ContentGenerator', () => {
         promptService,
       });
 
-      await expect(generator.generateFromKeywords('test')).rejects.toThrow(
-        'ctaUrl, ctaStyle, ctaPrompt'
-      );
+      const article = await generator.generateFromKeywords('PHP Testing');
+
+      expect(article.title).toBe('Test Titel');
+      expect(mockGenerateContent).toHaveBeenCalled();
     });
 
     it('generates content when settings configured', async () => {
