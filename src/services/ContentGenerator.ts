@@ -8,6 +8,8 @@ export interface IPromptService {
   getPrompt(id: string): Promise<string | null>;
   getCTAConfig(): Promise<{ url: string; style: string; prompt: string }>;
   getCoreTags(): Promise<string[]>;
+  getContentSettings(): Promise<import('./PromptService').ContentSettings>;
+  validateContentSettings(settings: import('./PromptService').ContentSettings): { valid: boolean; missing: string[] };
 }
 
 export interface GeneratedContent {
@@ -15,12 +17,13 @@ export interface GeneratedContent {
   description: string;
   content: string;
   tags: string[];
+  warnings?: string[];
 }
 
 export interface ContentGeneratorConfig {
   apiKey: string;
   model?: string;
-  promptService?: IPromptService;
+  promptService: IPromptService;
 }
 
 interface SourceAnalysis {
@@ -29,40 +32,6 @@ interface SourceAnalysis {
   uniqueInsights: string[];
   codeExamples: string[];
 }
-
-// Fallback values when database is not available
-const DEFAULT_CONTACT_URL =
-  'https://nevercodealone.de/de/kontakt';
-
-const DEFAULT_CORE_TAGS = ['Web-Entwicklung', 'Best Practices'];
-
-const DEFAULT_SYSTEM_PROMPT = `Du bist ein erfahrener technischer Content-Writer für Web-Entwicklung.
-Deine Aufgabe ist es, hochwertige deutsche Fachartikel zu erstellen.
-
-Zielgruppe: Content-Marketing-Professionals und Entwickler
-Tonalität: Professionell, aber zugänglich. Technisch korrekt, nicht übermäßig akademisch.
-
-KRITISCH - 100% Originalität:
-- Schreibe einen KOMPLETT EIGENSTÄNDIGEN Artikel
-- KEINE Sätze, Formulierungen oder Strukturen aus externen Quellen übernehmen
-- KEINE Hinweise auf Quellen, Referenzen oder Inspiration im Text
-- Nutze ausschließlich DEIN Expertenwissen zum jeweiligen Thema
-- Jeder Satz muss NEU formuliert sein - wie von einem Experten geschrieben
-- Der Artikel muss wirken als käme er aus eigener Fachkenntnis
-
-Regeln:
-- Schreibe auf Deutsch
-- Mindestens 800 Wörter
-- Verwende praktische Codebeispiele (eigene Beispiele, nicht kopiert)
-- WICHTIG: Content MUSS mit einer H1-Überschrift (# Titel) beginnen
-- Danach H2 (##) und H3 (###) Hierarchie ohne Sprünge
-- WICHTIG: Nur Markdown, KEINE HTML-Tags wie <p>, <div>, <span> etc.
-
-Titel-Regeln:
-- Das Hauptthema/Keyword MUSS im Titel vorkommen
-- Nutze Zahlen wenn möglich (z.B. "5 Tipps", "3 Fehler")
-- Zeige den Nutzen/Benefit (z.B. "So vermeidest du...", "Warum X wichtig ist")
-- Wecke Neugier oder löse ein Problem`;
 
 export function buildSourceAnalysisSchema() {
   return {
@@ -96,7 +65,12 @@ export class ContentGenerator {
   private client: GoogleGenerativeAI;
   private model: string;
   private fetcher: ContentFetcher;
-  private promptService: IPromptService | undefined;
+  private promptService: IPromptService;
+  private lastWarnings: string[] = [];
+
+  get warnings(): string[] {
+    return this.lastWarnings;
+  }
 
   constructor(config: ContentGeneratorConfig) {
     this.client = new GoogleGenerativeAI(config.apiKey);
@@ -114,6 +88,7 @@ export class ContentGenerator {
 
     // Step 2: Generate article based on analysis
     const generated = await this.generateContent(analysis);
+    this.lastWarnings = generated.warnings ?? [];
 
     const props: ArticleProps = {
       title: generated.title,
@@ -132,6 +107,7 @@ export class ContentGenerator {
 
     // Generate article based on research
     const generated = await this.generateContent(analysis);
+    this.lastWarnings = generated.warnings ?? [];
 
     const props: ArticleProps = {
       title: generated.title,
@@ -258,42 +234,68 @@ Fokussiere auf aktuelle Standards und praktische Anwendbarkeit.`;
       throw new Error(`Failed to parse generated content response: ${text.slice(0, 200)}`);
     }
 
+    const contentSettings = await this.promptService.getContentSettings();
+    const blacklistWarnings = this.checkBlacklist(data.content, contentSettings.blacklist);
+
     return {
       title: data.title,
       description: data.description,
       content: data.content,
       tags: [...new Set([...coreTags, ...data.tags])],
+      ...(blacklistWarnings.length > 0 ? { warnings: blacklistWarnings.map(term => `Blacklist-Begriff gefunden: "${term}"`) } : {}),
     };
   }
 
   private async buildSystemPrompt(): Promise<string> {
-    // Try to load from database
-    if (this.promptService) {
-      try {
-        const [basePrompt, ctaConfig] = await Promise.all([
-          this.promptService.getPrompt('system_prompt'),
-          this.promptService.getCTAConfig(),
-        ]);
+    const settings = await this.promptService.getContentSettings();
+    const validation = this.promptService.validateContentSettings(settings);
 
-        if (basePrompt) {
-          // Add CTA instructions to the system prompt
-          return `${basePrompt}
-
-- WICHTIG: Beende den Artikel mit einem einzigartigen Call-to-Action:
-  - Link: ${ctaConfig.url}
-  - Stil: ${ctaConfig.style}
-  ${ctaConfig.prompt}`;
-        }
-      } catch (error) {
-        console.warn('Failed to load prompts from database, using defaults');
-      }
+    if (!validation.valid) {
+      throw new Error(
+        `Content-Generierung nicht konfiguriert. Fehlende Settings: ${validation.missing.join(', ')}. Bitte unter Einstellungen → Content-KI ausfüllen.`
+      );
     }
 
-    // Fallback to default with static CTA
-    return `${DEFAULT_SYSTEM_PROMPT}
+    // Try custom system prompt from DB first
+    const basePrompt = await this.promptService.getPrompt('system_prompt');
 
-- WICHTIG: Beende den Artikel mit einem Call-to-Action, der zum Thema passt.
-  Verwende diesen Link: [Kontakt aufnehmen](${DEFAULT_CONTACT_URL})`;
+    const systemPrompt = basePrompt
+      ? basePrompt
+      : `Du bist ein erfahrener technischer Content-Writer für ${settings.branche}.
+Deine Aufgabe ist es, hochwertige deutsche Fachartikel zu erstellen.
+
+Zielgruppe: ${settings.zielgruppe}
+Tonalität: ${settings.tonalitaet}
+
+KRITISCH - 100% Originalität:
+- Schreibe einen KOMPLETT EIGENSTÄNDIGEN Artikel
+- KEINE Sätze, Formulierungen oder Strukturen aus externen Quellen übernehmen
+- KEINE Hinweise auf Quellen, Referenzen oder Inspiration im Text
+- Nutze ausschließlich DEIN Expertenwissen zum jeweiligen Thema
+- Jeder Satz muss NEU formuliert sein - wie von einem Experten geschrieben
+- Der Artikel muss wirken als käme er aus eigener Fachkenntnis
+
+Regeln:
+- Schreibe auf Deutsch
+- Mindestens ${settings.minWortanzahl} Wörter, maximal ${settings.maxWortanzahl} Wörter
+- Verwende praktische Codebeispiele (eigene Beispiele, nicht kopiert)
+- WICHTIG: Content MUSS mit einer H1-Überschrift (# Titel) beginnen
+- Danach H2 (##) und H3 (###) Hierarchie ohne Sprünge
+- WICHTIG: Nur Markdown, KEINE HTML-Tags wie <p>, <div>, <span> etc.
+${settings.stilRegeln ? `\nZusätzliche Stilregeln:\n${settings.stilRegeln}` : ''}
+
+Titel-Regeln:
+- Das Hauptthema/Keyword MUSS im Titel vorkommen
+- Nutze Zahlen wenn möglich (z.B. "5 Tipps", "3 Fehler")
+- Zeige den Nutzen/Benefit (z.B. "So vermeidest du...", "Warum X wichtig ist")
+- Wecke Neugier oder löse ein Problem`;
+
+    return `${systemPrompt}
+
+- WICHTIG: Beende den Artikel mit einem einzigartigen Call-to-Action:
+  - Link: ${settings.ctaUrl}
+  - Stil: ${settings.ctaStyle}
+  ${settings.ctaPrompt}`;
   }
 
   private buildUserPrompt(analysis: SourceAnalysis): string {
@@ -309,13 +311,12 @@ Wichtig: Schreibe komplett eigenständig aus deiner Expertise heraus.`;
   }
 
   private async getCoreTags(): Promise<string[]> {
-    if (this.promptService) {
-      try {
-        return await this.promptService.getCoreTags();
-      } catch {
-        // Fall through to default
-      }
-    }
-    return DEFAULT_CORE_TAGS;
+    return await this.promptService.getCoreTags();
+  }
+
+  private checkBlacklist(content: string, blacklist: string): string[] {
+    if (!blacklist.trim()) return [];
+    const terms = blacklist.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+    return terms.filter(term => content.toLowerCase().includes(term));
   }
 }

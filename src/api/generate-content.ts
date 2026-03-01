@@ -33,6 +33,7 @@ export const POST: APIRoute = async ({ request }) => {
       filepath: article.filepath,
       tags: article.tags,
       date: article.date.toISOString(),
+      ...(generator.warnings.length > 0 ? { warnings: generator.warnings } : {}),
     });
   } catch (error) {
     console.error('Generation error:', error);
