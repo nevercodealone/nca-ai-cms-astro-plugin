@@ -6,6 +6,32 @@ export interface CTAConfig {
   prompt: string;
 }
 
+export interface ImageSettings {
+  baseStylePrompt: string;
+  constraints: string;
+  sceneTemplate: string;
+  altTextTemplate: string;
+  filenamePrompt: string;
+  categoryScenes: Record<string, string>;
+}
+
+export const IMAGE_SETTING_KEYS = [
+  'image.baseStylePrompt',
+  'image.constraints',
+  'image.sceneTemplate',
+  'image.altTextTemplate',
+  'image.filenamePrompt',
+  'image.categoryScenes',
+] as const;
+
+export const REQUIRED_IMAGE_SETTINGS = [
+  'image.baseStylePrompt',
+  'image.constraints',
+  'image.sceneTemplate',
+  'image.altTextTemplate',
+  'image.filenamePrompt',
+] as const;
+
 export class PromptService {
   async getPrompt(id: string): Promise<string | null> {
     const result = await db
@@ -97,6 +123,52 @@ export class PromptService {
         style ??
         'Professionell, einladend, mit klarem Nutzenversprechen. Deutsche Sprache.',
       prompt: prompt ?? 'Generiere einen einzigartigen Call-to-Action.',
+    };
+  }
+
+  async getImageSettings(): Promise<ImageSettings> {
+    const [
+      baseStylePrompt,
+      constraints,
+      sceneTemplate,
+      altTextTemplate,
+      filenamePrompt,
+      categoryScenesRaw,
+    ] = await Promise.all(
+      IMAGE_SETTING_KEYS.map((key) => this.getSetting(key))
+    );
+
+    let categoryScenes: Record<string, string> = {};
+    if (categoryScenesRaw) {
+      try {
+        categoryScenes = JSON.parse(categoryScenesRaw);
+      } catch {
+        categoryScenes = {};
+      }
+    }
+
+    return {
+      baseStylePrompt: baseStylePrompt ?? '',
+      constraints: constraints ?? '',
+      sceneTemplate: sceneTemplate ?? '',
+      altTextTemplate: altTextTemplate ?? '',
+      filenamePrompt: filenamePrompt ?? '',
+      categoryScenes,
+    };
+  }
+
+  validateImageSettings(settings: ImageSettings): { valid: boolean; missing: string[] } {
+    const missing: string[] = [];
+
+    if (!settings.baseStylePrompt.trim()) missing.push('baseStylePrompt');
+    if (!settings.constraints.trim()) missing.push('constraints');
+    if (!settings.sceneTemplate.trim()) missing.push('sceneTemplate');
+    if (!settings.altTextTemplate.trim()) missing.push('altTextTemplate');
+    if (!settings.filenamePrompt.trim()) missing.push('filenamePrompt');
+
+    return {
+      valid: missing.length === 0,
+      missing,
     };
   }
 
