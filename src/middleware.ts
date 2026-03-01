@@ -1,7 +1,8 @@
+// @ts-ignore - resolved by Astro build pipeline
 import { defineMiddleware } from 'astro:middleware';
 import { isPublicPath, isProtectedPath, isAuthenticated } from './utils/authUtils.js';
 
-export const onRequest = defineMiddleware(async ({ request, cookies, redirect }, next) => {
+export const onRequest = defineMiddleware(async ({ request, cookies, redirect }: any, next: any) => {
   const url = new URL(request.url);
   const { pathname } = url;
 

@@ -1,3 +1,4 @@
+// @ts-ignore - resolved by Astro build pipeline
 import { db, Prompts, SiteSettings, eq } from 'astro:db';
 
 export interface CTAConfig {

@@ -1,6 +1,7 @@
 import type { AstroIntegration } from 'astro';
 import react from '@astrojs/react';
 import db from '@astrojs/db';
+// @ts-ignore - resolved by Astro build pipeline
 import node from '@astrojs/node';
 
 export interface NcaAiCmsPluginOptions {

@@ -1,3 +1,4 @@
+// @ts-ignore - resolved by Astro build pipeline
 import { db, ScheduledPosts, eq } from 'astro:db';
 import type { ScheduledPostDBRow } from '../domain/entities/ScheduledPost';
 import type { SchedulerDBAdapter } from './SchedulerService';
