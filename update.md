@@ -1,3 +1,19 @@
+# v1.0.13
+
+## ContentGenerator: settings-driven, zero hardcoding
+- Removed all hardcoded prompt strings from `ContentGenerator.ts` (DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTACT_URL, DEFAULT_CORE_TAGS)
+- All content generation parameters now read from `SiteSettings` at runtime via `PromptService.getContentSettings()`
+- New settings: `content.branche`, `content.zielgruppe`, `content.tonalitaet`, `content.blacklist`, `content.min_wortanzahl`, `content.max_wortanzahl`, `content.stil_regeln`, `content.cta_url`, `content.cta_style`, `content.cta_prompt`
+- Added `validateContentSettings()` — blocks generation with clear error message when settings are missing
+- Added blacklist post-generation check with warnings in API response
+- `promptService` is now required (was optional with hardcoded fallbacks)
+- Removed hardcoded fallbacks from `getCTAConfig()` and `getCoreTags()`
+- Settings UI: new Content-KI tab with all content settings fields, CTA fields moved from Website tab
+- Content-KI tab shows both settings form and prompt cards (dual rendering)
+- 17 new tests for ContentGenerator and PromptService content settings
+
+---
+
 # v1.0.12
 
 ## ImageGenerator: settings-driven, zero hardcoding
