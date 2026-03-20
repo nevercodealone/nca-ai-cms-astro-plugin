@@ -1,6 +1,6 @@
 import { defineDb } from 'astro:db';
-import { SiteSettings, Prompts, ScheduledPosts } from './tables.js';
+import { SiteSettings, Prompts, ScheduledPosts, Sessions } from './tables.js';
 
 export default defineDb({
-  tables: { SiteSettings, Prompts, ScheduledPosts },
+  tables: { SiteSettings, Prompts, ScheduledPosts, Sessions },
 });

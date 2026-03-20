@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const mockValidateSession = vi.fn();
+
+vi.mock('../services/SessionService.js', () => ({
+  validateSession: (...args: unknown[]) => mockValidateSession(...args),
+}));
+
 import { isPublicPath, isProtectedPath, isAuthenticated } from './authUtils.js';
 
 describe('isPublicPath', () => {
@@ -36,30 +43,37 @@ describe('isProtectedPath', () => {
 
 describe('isAuthenticated', () => {
   beforeEach(() => {
-    process.env.EDITOR_ADMIN = 'admin';
-    process.env.EDITOR_PASSWORD = 'secret';
+    mockValidateSession.mockReset();
   });
 
-  afterEach(() => {
-    delete process.env.EDITOR_ADMIN;
-    delete process.env.EDITOR_PASSWORD;
+  it('returns true when session is valid', async () => {
+    mockValidateSession.mockResolvedValue(true);
+    const result = await isAuthenticated('valid-token');
+    expect(result).toBe(true);
+    expect(mockValidateSession).toHaveBeenCalledWith('valid-token');
   });
 
-  it('returns true for valid base64 credentials', () => {
-    const token = btoa('admin:secret');
-    expect(isAuthenticated(token)).toBe(true);
+  it('returns false when session is invalid', async () => {
+    mockValidateSession.mockResolvedValue(false);
+    const result = await isAuthenticated('expired-token');
+    expect(result).toBe(false);
   });
 
-  it('returns false for wrong credentials', () => {
-    const token = btoa('admin:wrong');
-    expect(isAuthenticated(token)).toBe(false);
+  it('returns false for undefined without calling validateSession', async () => {
+    const result = await isAuthenticated(undefined);
+    expect(result).toBe(false);
+    expect(mockValidateSession).not.toHaveBeenCalled();
   });
 
-  it('returns false for undefined', () => {
-    expect(isAuthenticated(undefined)).toBe(false);
+  it('returns false for empty string without calling validateSession', async () => {
+    const result = await isAuthenticated('');
+    expect(result).toBe(false);
+    expect(mockValidateSession).not.toHaveBeenCalled();
   });
 
-  it('returns false for invalid base64', () => {
-    expect(isAuthenticated('%%%not-base64')).toBe(false);
+  it('returns false when validateSession throws', async () => {
+    mockValidateSession.mockRejectedValue(new Error('DB error'));
+    const result = await isAuthenticated('some-token');
+    expect(result).toBe(false);
   });
 });
