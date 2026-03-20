@@ -1,3 +1,18 @@
+# v1.0.15
+
+## Security: authentication hardening
+- Replaced base64-encoded password cookie with opaque server-side session tokens (`crypto.randomUUID()`)
+- New `Sessions` Astro DB table for server-side session storage with 24h expiry
+- Timing-safe credential verification via `crypto.timingSafeEqual` — prevents timing attacks
+- HMAC-based cookie tokens — password never leaves the server
+- Rate limiting on login: 5 attempts per 15 minutes per IP, returns 429 with Retry-After header
+- Failed login attempts logged with IP and timestamp
+- Session invalidation on logout (server-side row deleted)
+- Expired sessions purged on each login
+- 31 new tests (207 total, up from 176)
+
+---
+
 # v1.0.14
 
 ## Bugfix: Regenerate text works without content-ai settings
