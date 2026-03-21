@@ -1,3 +1,18 @@
+# v1.0.16
+
+## Feature: Pages content type with flat URL structure
+- New `pagesPath` plugin option (default: `nca-ai-cms-pages`) for managing CMS pages separately from articles
+- Flat folder support in ArticleFinder — pages stored as `basePath/slug/index.md` without date hierarchy
+- SEO-friendly URLs: `/services/laserreinigung` instead of `/services/2024/04/laserreinigung`
+- Flat paths take priority over year/month paths when both exist
+- New `flatPath` option on Article entity for flat folder creation
+- 8 new API routes: `/api/pages/*` (list, CRUD, regenerate text/image, apply, generate, save)
+- `/api/page-image/[...path]` route for serving page images (public, no auth required)
+- New "Seiten" tab in editor UI — list, create, delete pages with AI content generation
+- 4 new tests (211 total, up from 207)
+
+---
+
 # v1.0.15
 
 ## Security: authentication hardening
