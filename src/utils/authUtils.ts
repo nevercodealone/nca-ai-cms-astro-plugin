@@ -1,7 +1,7 @@
 import { validateSession } from '../services/SessionService.js';
 
 const PUBLIC_PATHS = ['/api/auth/login', '/api/auth/logout', '/login'];
-const PUBLIC_PATH_PREFIXES = ['/api/article-image/'];
+const PUBLIC_PATH_PREFIXES = ['/api/article-image/', '/api/page-image/'];
 
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.includes(pathname) || PUBLIC_PATH_PREFIXES.some(prefix => pathname.startsWith(prefix));
