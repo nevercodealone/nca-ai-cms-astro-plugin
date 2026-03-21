@@ -10,6 +10,7 @@ export type ArticleProps = {
   image?: string;
   imageAlt?: string;
   contentPath?: string;
+  flatPath?: boolean;
 };
 
 export class Article {
@@ -23,6 +24,7 @@ export class Article {
   readonly image?: string;
   readonly imageAlt?: string;
   readonly contentPath: string;
+  readonly flatPath: boolean;
 
   constructor(props: ArticleProps) {
     this.title = props.title;
@@ -32,6 +34,7 @@ export class Article {
     this.slug = new Slug(props.title);
     this.seoMetadata = new SEOMetadata(props.title, props.description);
     this.contentPath = props.contentPath ?? 'nca-ai-cms-content';
+    this.flatPath = props.flatPath ?? false;
 
     this.content = props.content;
 
@@ -56,6 +59,9 @@ export class Article {
   }
 
   get folderPath(): string {
+    if (this.flatPath) {
+      return `${this.contentPath}/${this.slug.toString()}`;
+    }
     return `${this.contentPath}/${this.year}/${this.month}/${this.slug.toString()}`;
   }
 

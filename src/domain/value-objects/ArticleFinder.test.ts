@@ -101,4 +101,37 @@ describe('ArticleFinder', () => {
       expect(result?.articleId).toBe('2026/01/test-slug');
     });
   });
+
+  describe('flat folder support', () => {
+    it('finds article in flat structure (basePath/slug/index.md)', async () => {
+      const flatFolder = path.join(tempDir, 'laserreinigung');
+      await fs.mkdir(flatFolder, { recursive: true });
+      await fs.writeFile(
+        path.join(flatFolder, 'index.md'),
+        '---\ntitle: Laserreinigung\n---\nContent'
+      );
+
+      const result = await finder.findBySlug('laserreinigung');
+
+      expect(result).not.toBeNull();
+      expect(result?.folderPath).toBe(flatFolder);
+      expect(result?.articleId).toBe('laserreinigung');
+    });
+
+    it('flat folder takes priority over year/month match', async () => {
+      // Create both flat and nested
+      const flatFolder = path.join(tempDir, 'my-page');
+      await fs.mkdir(flatFolder, { recursive: true });
+      await fs.writeFile(path.join(flatFolder, 'index.md'), '---\ntitle: Flat\n---');
+
+      const nestedFolder = path.join(tempDir, '2026', '01', 'my-page');
+      await fs.mkdir(nestedFolder, { recursive: true });
+      await fs.writeFile(path.join(nestedFolder, 'index.md'), '---\ntitle: Nested\n---');
+
+      const result = await finder.findBySlug('my-page');
+
+      expect(result?.articleId).toBe('my-page');
+      expect(result?.folderPath).toBe(flatFolder);
+    });
+  });
 });
