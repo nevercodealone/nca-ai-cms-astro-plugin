@@ -181,6 +181,18 @@ export default function ncaAiCms(
           prerender: false,
         });
 
+        // Inject DB management routes (auth-protected via middleware)
+        injectRoute({
+          pattern: '/api/db/download',
+          entrypoint: 'nca-ai-cms-astro-plugin/api/db/download.ts',
+          prerender: false,
+        });
+        injectRoute({
+          pattern: '/api/db/upload',
+          entrypoint: 'nca-ai-cms-astro-plugin/api/db/upload.ts',
+          prerender: false,
+        });
+
         // Inject auth routes
         injectRoute({
           pattern: '/api/auth/login',
