@@ -1,3 +1,17 @@
+# v1.0.17
+
+## Feature: Database download/upload via Editor UI
+- New GET `/api/db/download` endpoint — exports SQLite database as file download with timestamp
+- New POST `/api/db/upload` endpoint — imports SQLite database with validation and backup
+- Download/Upload buttons in Editor → Einstellungen → Website tab
+- Path traversal protection: database path validated against project root
+- File size limit: 50 MB max upload
+- SQLite header validation on upload (rejects non-SQLite files)
+- Automatic backup of current DB before overwrite (`content.db.backup`)
+- Both routes auth-protected via existing middleware
+
+---
+
 # v1.0.16
 
 ## Feature: Pages content type with flat URL structure
