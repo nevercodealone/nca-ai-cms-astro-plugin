@@ -16,7 +16,7 @@ export const onRequest = defineMiddleware(async ({ request, cookies, redirect }:
 
   const authCookie = cookies.get('editor-auth')?.value;
 
-  if (isAuthenticated(authCookie)) {
+  if (await isAuthenticated(authCookie)) {
     return next();
   }
 

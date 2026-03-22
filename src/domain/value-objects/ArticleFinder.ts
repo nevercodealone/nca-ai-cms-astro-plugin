@@ -12,6 +12,18 @@ export class ArticleFinder {
 
   async findBySlug(slug: string): Promise<ArticleLocation | null> {
     try {
+      // 1. Check flat structure: basePath/slug/index.md
+      const flatPath = path.join(this.basePath, slug);
+      const flatIndex = path.join(flatPath, 'index.md');
+      try {
+        await fs.access(flatIndex);
+        const stat = await fs.stat(flatPath);
+        if (stat.isDirectory()) {
+          return { folderPath: flatPath, indexPath: flatIndex, articleId: slug };
+        }
+      } catch {}
+
+      // 2. Fall back to year/month/slug structure
       const years = await this.getDirectories(this.basePath);
 
       for (const year of years) {
@@ -27,7 +39,6 @@ export class ArticleFinder {
               const folderPath = path.join(monthPath, article);
               const indexPath = path.join(folderPath, 'index.md');
 
-              // Verify index.md exists
               try {
                 await fs.access(indexPath);
                 return {
@@ -36,7 +47,6 @@ export class ArticleFinder {
                   articleId: `${year}/${month}/${article}`,
                 };
               } catch {
-                // index.md doesn't exist, skip this folder
                 continue;
               }
             }

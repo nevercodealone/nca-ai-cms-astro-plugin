@@ -37,4 +37,12 @@ const Prompts = defineTable({
   },
 });
 
-export { SiteSettings, Prompts, ScheduledPosts };
+const Sessions = defineTable({
+  columns: {
+    token: column.text({ primaryKey: true }),
+    createdAt: column.date({ default: new Date() }),
+    expiresAt: column.date(),
+  },
+});
+
+export { SiteSettings, Prompts, ScheduledPosts, Sessions };

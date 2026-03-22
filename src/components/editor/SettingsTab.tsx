@@ -289,6 +289,50 @@ export function SettingsTab() {
         ))}
       </div>
 
+      {/* Database Management — only on Website tab */}
+      {activeSubTab === 'website' && (
+        <div style={{ ...styles.plannerForm, flexDirection: 'row', alignItems: 'center' }}>
+          <span style={{ ...styles.label, marginRight: 'auto' }}>Datenbank-Verwaltung</span>
+          <a
+            href="/api/db/download"
+            style={{ ...styles.editButton, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            ↓ DB herunterladen
+          </a>
+          <label style={{ ...styles.editButton, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
+            ↑ DB hochladen
+            <input
+              type="file"
+              accept=".db,.sqlite,.sqlite3"
+              style={styles.srOnly}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (!confirm(`Datenbank "${file.name}" hochladen? Die aktuelle DB wird ueberschrieben.`)) {
+                  e.target.value = '';
+                  return;
+                }
+                const formData = new FormData();
+                formData.append('database', file);
+                try {
+                  const res = await fetch('/api/db/upload', { method: 'POST', body: formData });
+                  const data = await res.json();
+                  if (res.ok) {
+                    alert('Datenbank hochgeladen. Seite wird neu geladen.');
+                    window.location.reload();
+                  } else {
+                    alert('Fehler: ' + (data.error || 'Upload fehlgeschlagen'));
+                  }
+                } catch {
+                  alert('Upload fehlgeschlagen');
+                }
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </div>
+      )}
+
       {loading && (
         <div style={styles.loadingBox}>Einstellungen werden geladen...</div>
       )}

@@ -135,4 +135,27 @@ describe('Article', () => {
     expect(markdown).toContain('image: "./hero.webp"');
     expect(markdown).toContain('imageAlt: "Accessibility illustration"');
   });
+
+  it('generates flat folderPath when flatPath is true', () => {
+    const article = new Article({
+      ...defaultProps,
+      contentPath: 'nca-ai-cms-pages',
+      flatPath: true,
+    });
+
+    expect(article.folderPath).toBe(
+      'nca-ai-cms-pages/html-accessibility-grundlagen'
+    );
+  });
+
+  it('generates nested folderPath when flatPath is false', () => {
+    const article = new Article({
+      ...defaultProps,
+      flatPath: false,
+    });
+
+    expect(article.folderPath).toBe(
+      'nca-ai-cms-content/2025/12/html-accessibility-grundlagen'
+    );
+  });
 });

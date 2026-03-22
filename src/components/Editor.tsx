@@ -9,10 +9,12 @@ import {
 } from './editor/GenerateTab';
 import { SettingsTab } from './editor/SettingsTab';
 import { PlannerTab } from './editor/PlannerTab';
+import { PagesTab } from './editor/PagesTab';
 
 const TABS: { key: TabType; label: string }[] = [
   { key: 'generate', label: 'Generieren' },
   { key: 'planner', label: 'Planer' },
+  { key: 'pages', label: 'Seiten' },
   { key: 'settings', label: 'Einstellungen' },
 ];
 
@@ -97,6 +99,17 @@ export default function Editor() {
           style={isFullWidth ? styles.panelFullWidth : undefined}
         >
           <PlannerTab />
+        </div>
+      )}
+
+      {activeTab === 'pages' && (
+        <div
+          id="panel-pages"
+          role="tabpanel"
+          aria-labelledby="tab-pages"
+          style={isFullWidth ? styles.panelFullWidth : undefined}
+        >
+          <PagesTab />
         </div>
       )}
 

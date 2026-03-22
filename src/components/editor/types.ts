@@ -1,4 +1,4 @@
-export type TabType = 'generate' | 'planner' | 'settings';
+export type TabType = 'generate' | 'planner' | 'pages' | 'settings';
 
 export type SettingsSubTab =
   | 'homepage'

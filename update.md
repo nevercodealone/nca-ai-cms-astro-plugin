@@ -1,3 +1,47 @@
+# v1.0.17
+
+## Feature: Database download/upload via Editor UI
+- New GET `/api/db/download` endpoint — exports SQLite database as file download with timestamp
+- New POST `/api/db/upload` endpoint — imports SQLite database with validation and backup
+- Download/Upload buttons in Editor → Einstellungen → Website tab
+- Path traversal protection: database path validated against project root
+- File size limit: 50 MB max upload
+- SQLite header validation on upload (rejects non-SQLite files)
+- Automatic backup of current DB before overwrite (`content.db.backup`)
+- Both routes auth-protected via existing middleware
+
+---
+
+# v1.0.16
+
+## Feature: Pages content type with flat URL structure
+- New `pagesPath` plugin option (default: `nca-ai-cms-pages`) for managing CMS pages separately from articles
+- Flat folder support in ArticleFinder — pages stored as `basePath/slug/index.md` without date hierarchy
+- SEO-friendly URLs: `/services/laserreinigung` instead of `/services/2024/04/laserreinigung`
+- Flat paths take priority over year/month paths when both exist
+- New `flatPath` option on Article entity for flat folder creation
+- 8 new API routes: `/api/pages/*` (list, CRUD, regenerate text/image, apply, generate, save)
+- `/api/page-image/[...path]` route for serving page images (public, no auth required)
+- New "Seiten" tab in editor UI — list, create, delete pages with AI content generation
+- 4 new tests (211 total, up from 207)
+
+---
+
+# v1.0.15
+
+## Security: authentication hardening
+- Replaced base64-encoded password cookie with opaque server-side session tokens (`crypto.randomUUID()`)
+- New `Sessions` Astro DB table for server-side session storage with 24h expiry
+- Timing-safe credential verification via `crypto.timingSafeEqual` — prevents timing attacks
+- HMAC-based cookie tokens — password never leaves the server
+- Rate limiting on login: 5 attempts per 15 minutes per IP, returns 429 with Retry-After header
+- Failed login attempts logged with IP and timestamp
+- Session invalidation on logout (server-side row deleted)
+- Expired sessions purged on each login
+- 31 new tests (207 total, up from 176)
+
+---
+
 # v1.0.14
 
 ## Bugfix: Regenerate text works without content-ai settings

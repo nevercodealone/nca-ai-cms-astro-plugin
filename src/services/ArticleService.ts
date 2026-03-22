@@ -43,17 +43,27 @@ export class ArticleService {
     const fullBasePath = path.join(process.cwd(), this.basePath);
 
     try {
-      const years = await fs.readdir(fullBasePath);
+      const entries = await fs.readdir(fullBasePath);
 
-      for (const year of years) {
-        const yearPath = path.join(fullBasePath, year);
-        const yearStat = await fs.stat(yearPath).catch(() => null);
-        if (!yearStat?.isDirectory()) continue;
+      for (const entry of entries) {
+        const entryPath = path.join(fullBasePath, entry);
+        const entryStat = await fs.stat(entryPath).catch(() => null);
+        if (!entryStat?.isDirectory()) continue;
 
-        const months = await fs.readdir(yearPath);
+        // Check if this is a flat article (has index.md directly)
+        const flatIndex = path.join(entryPath, 'index.md');
+        try {
+          await fs.access(flatIndex);
+          const article = await this.read(entry);
+          if (article) articles.push(article);
+          continue;
+        } catch {}
+
+        // Otherwise treat as year directory → scan month/slug
+        const months = await fs.readdir(entryPath);
 
         for (const month of months) {
-          const monthPath = path.join(yearPath, month);
+          const monthPath = path.join(entryPath, month);
           const monthStat = await fs.stat(monthPath).catch(() => null);
           if (!monthStat?.isDirectory()) continue;
 

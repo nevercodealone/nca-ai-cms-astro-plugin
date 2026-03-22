@@ -1,7 +1,7 @@
-import { getEnvVariable } from './envUtils.js';
+import { validateSession } from '../services/SessionService.js';
 
 const PUBLIC_PATHS = ['/api/auth/login', '/api/auth/logout', '/login'];
-const PUBLIC_PATH_PREFIXES = ['/api/article-image/'];
+const PUBLIC_PATH_PREFIXES = ['/api/article-image/', '/api/page-image/'];
 
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.includes(pathname) || PUBLIC_PATH_PREFIXES.some(prefix => pathname.startsWith(prefix));
@@ -11,15 +11,11 @@ export function isProtectedPath(pathname: string): boolean {
   return pathname.startsWith('/api/') || pathname === '/editor';
 }
 
-export function isAuthenticated(cookieValue: string | undefined): boolean {
+export async function isAuthenticated(cookieValue: string | undefined): Promise<boolean> {
   if (!cookieValue) return false;
 
   try {
-    const decoded = atob(cookieValue);
-    const [username, password] = decoded.split(':');
-    const expectedUsername = getEnvVariable('EDITOR_ADMIN');
-    const expectedPassword = getEnvVariable('EDITOR_PASSWORD');
-    return username === expectedUsername && password === expectedPassword;
+    return await validateSession(cookieValue);
   } catch {
     return false;
   }

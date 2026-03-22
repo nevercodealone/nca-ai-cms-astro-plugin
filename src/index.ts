@@ -6,6 +6,7 @@ import node from '@astrojs/node';
 
 export interface NcaAiCmsPluginOptions {
   contentPath?: string;
+  pagesPath?: string;
   autoPublish?: boolean;
 }
 
@@ -13,6 +14,7 @@ export default function ncaAiCms(
   options: NcaAiCmsPluginOptions = {}
 ): AstroIntegration {
   const contentPath = options.contentPath ?? 'nca-ai-cms-content';
+  const pagesPath = options.pagesPath ?? 'nca-ai-cms-pages';
   const autoPublish = options.autoPublish ?? import.meta.env.PROD;
 
   return {
@@ -60,7 +62,7 @@ export default function ncaAiCms(
                 },
                 load(id) {
                   if (id === '\0virtual:nca-ai-cms/config') {
-                    return `export const contentPath = ${JSON.stringify(contentPath)};\nexport const autoPublish = ${JSON.stringify(autoPublish)};`;
+                    return `export const contentPath = ${JSON.stringify(contentPath)};\nexport const pagesPath = ${JSON.stringify(pagesPath)};\nexport const autoPublish = ${JSON.stringify(autoPublish)};`;
                   }
                 },
               },
@@ -134,6 +136,60 @@ export default function ncaAiCms(
           pattern: '/api/articles/[id]/regenerate-image',
           entrypoint:
             'nca-ai-cms-astro-plugin/api/articles/[id]/regenerate-image.ts',
+          prerender: false,
+        });
+
+        // Inject page API routes (mirrors article routes with pagesPath)
+        injectRoute({
+          pattern: '/api/pages',
+          entrypoint: 'nca-ai-cms-astro-plugin/api/pages/index.ts',
+          prerender: false,
+        });
+        injectRoute({
+          pattern: '/api/pages/[id]',
+          entrypoint: 'nca-ai-cms-astro-plugin/api/pages/[id].ts',
+          prerender: false,
+        });
+        injectRoute({
+          pattern: '/api/pages/[id]/apply',
+          entrypoint: 'nca-ai-cms-astro-plugin/api/pages/[id]/apply.ts',
+          prerender: false,
+        });
+        injectRoute({
+          pattern: '/api/pages/[id]/regenerate-text',
+          entrypoint: 'nca-ai-cms-astro-plugin/api/pages/[id]/regenerate-text.ts',
+          prerender: false,
+        });
+        injectRoute({
+          pattern: '/api/pages/[id]/regenerate-image',
+          entrypoint: 'nca-ai-cms-astro-plugin/api/pages/[id]/regenerate-image.ts',
+          prerender: false,
+        });
+        injectRoute({
+          pattern: '/api/generate-page',
+          entrypoint: 'nca-ai-cms-astro-plugin/api/generate-page.ts',
+          prerender: false,
+        });
+        injectRoute({
+          pattern: '/api/save-page',
+          entrypoint: 'nca-ai-cms-astro-plugin/api/save-page.ts',
+          prerender: false,
+        });
+        injectRoute({
+          pattern: '/api/page-image/[...path]',
+          entrypoint: 'nca-ai-cms-astro-plugin/pages/api/page-image/[...path].ts',
+          prerender: false,
+        });
+
+        // Inject DB management routes (auth-protected via middleware)
+        injectRoute({
+          pattern: '/api/db/download',
+          entrypoint: 'nca-ai-cms-astro-plugin/api/db/download.ts',
+          prerender: false,
+        });
+        injectRoute({
+          pattern: '/api/db/upload',
+          entrypoint: 'nca-ai-cms-astro-plugin/api/db/upload.ts',
           prerender: false,
         });
 
